@@ -8,14 +8,14 @@ module.exports = {
     extend: {
       colors: {
         'navetec': {
-          'primary': '#00567D',
-          'primary-dark': '#002B53',
-          'primary-medium': '#002D74',
-          'primary-light': '#1F49B6',
-          'secondary-1': '#425CC7',
-          'secondary-2': '#87A9E2',
-          'secondary-3': '#6FB1C8',
-          'secondary-4': '#002B53',
+          'primary': '#12b4ffff',
+          'primary-dark': '#a41983ff',
+          'primary-medium': '#0364ffff',
+          'primary-light': '#5d80d8ff',
+          'secondary-1': '#1aaa0dff',
+          'secondary-2': '#08f000ff',
+          'secondary-3': '#ea2626ff',
+          'secondary-4': '#c32520ff',
         }
       },
       fontFamily: {
