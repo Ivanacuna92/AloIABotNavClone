@@ -2,6 +2,9 @@ const makeWASocket = require('baileys').default;
 const { DisconnectReason, useMultiFileAuthState, makeCacheableSignalKeyStore, fetchLatestBaileysVersion } = require('baileys');
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
+const fs = require('fs');
+const fsPromises = require('fs').promises;
+const path = require('path');
 const config = require('../config/config');
 const logger = require('../services/logger');
 const aiService = require('../services/aiService');
@@ -11,10 +14,20 @@ const humanModeManager = require('../services/humanModeManager');
 const followUpService = require('../services/followUpService');
 const systemConfigService = require('../services/systemConfigService');
 
+// Helper para extraer userId limpio de diferentes formatos de WhatsApp
+function extractUserId(remoteJid) {
+    if (!remoteJid) return '';
+    return remoteJid
+        .replace('@s.whatsapp.net', '')
+        .replace('@lid', '')
+        .replace('@g.us', '');
+}
+
 class WhatsAppBot {
     constructor() {
         this.sock = null;
         this.currentQR = null;
+        this.connectionStatus = 'disconnected'; // 'disconnected', 'connecting', 'connected'
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 3;
         this.isReconnecting = false;
@@ -31,6 +44,13 @@ class WhatsAppBot {
         config.validateApiKey();
         
         try {
+            // Asegurar que la carpeta auth_baileys existe con permisos correctos
+            const authPath = path.join(process.cwd(), 'auth_baileys');
+            if (!fs.existsSync(authPath)) {
+                fs.mkdirSync(authPath, { recursive: true, mode: 0o755 });
+                console.log('Carpeta auth_baileys creada con permisos correctos');
+            }
+
             // Configurar autenticación multi-archivo
             const { state, saveCreds } = await useMultiFileAuthState('./auth_baileys');
             
@@ -74,10 +94,12 @@ class WhatsAppBot {
                 console.log('Escanea este código QR con WhatsApp:');
                 console.log('O visita: http://tu-servidor:4242/qr');
                 this.currentQR = qr;
+                this.connectionStatus = 'connecting';
                 qrcode.generate(qr, { small: true });
             }
             
             if (connection === 'close') {
+                this.connectionStatus = 'disconnected';
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
                 const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
                 console.log('Conexión cerrada debido a', lastDisconnect?.error, ', reconectando:', shouldReconnect);
@@ -107,6 +129,7 @@ class WhatsAppBot {
             } else if (connection === 'open') {
                 console.log('¡Bot de WhatsApp conectado y listo!');
                 this.currentQR = null;
+                this.connectionStatus = 'connected';
                 this.reconnectAttempts = 0;
                 this.isReconnecting = false;
                 logger.log('SYSTEM', 'Bot iniciado correctamente con Baileys');
@@ -131,7 +154,7 @@ class WhatsAppBot {
             for (const update of updates) {
                 try {
                     const messageId = update.key.id;
-                    const userId = update.key.remoteJid?.replace('@s.whatsapp.net', '');
+                    const userId = extractUserId(update.key.remoteJid);
 
                     // Log para debugging
                     console.log('📱 Update recibido:', JSON.stringify(update, null, 2));
@@ -219,8 +242,8 @@ class WhatsAppBot {
                     // Los grupos ahora funcionan igual que los chats privados
                     // No se activa soporte automáticamente, el usuario decide si usar IA o modo manual
                 } else {
-                    // Para chats privados
-                    userId = from.replace('@s.whatsapp.net', '');
+                    // Para chats privados (soporta @s.whatsapp.net y @lid de WhatsApp Business)
+                    userId = extractUserId(from);
                     userName = msg.pushName || userId;
 
                     await logger.log('cliente', conversation, userId, userName, isGroup);
@@ -327,7 +350,7 @@ class WhatsAppBot {
         console.error('Error procesando mensaje:', error);
         
         const from = message.key.remoteJid;
-        const userId = from.replace('@s.whatsapp.net', '');
+        const userId = extractUserId(from);
         
         let errorMessage = 'Lo siento, ocurrió un error. Inténtalo de nuevo.';
         
@@ -351,12 +374,10 @@ class WhatsAppBot {
     }
     
     async clearSession() {
-        const fs = require('fs').promises;
-        const path = require('path');
         const authPath = path.join(process.cwd(), 'auth_baileys');
         
         try {
-            await fs.rm(authPath, { recursive: true, force: true });
+            await fsPromises.rm(authPath, { recursive: true, force: true });
             console.log('Sesión eliminada correctamente');
         } catch (err) {
             console.log('No había sesión previa o ya fue eliminada');
@@ -366,6 +387,8 @@ class WhatsAppBot {
     async logout() {
         console.log('Cerrando sesión de WhatsApp...');
         try {
+            this.connectionStatus = 'disconnected';
+            this.currentQR = null;
             this.reconnectAttempts = 0;
             this.isReconnecting = false;
             

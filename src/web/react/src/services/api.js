@@ -376,14 +376,19 @@ export async function checkWhatsAppStatus() {
     const response = await fetchWithCredentials(`${API_BASE}/qr`);
 
     if (!response.ok) {
-      return { connected: false, error: true };
+      return { connected: false, status: 'disconnected', error: true };
     }
 
     const data = await response.json();
-    // Si hay QR, no está conectado. Si no hay QR, está conectado.
-    return { connected: !data.qr, error: false };
+    // Usar el status explícito del backend
+    return {
+      connected: data.status === 'connected',
+      status: data.status,
+      qr: data.qr,
+      error: false
+    };
   } catch (error) {
-    return { connected: false, error: true };
+    return { connected: false, status: 'disconnected', error: true };
   }
 }
 

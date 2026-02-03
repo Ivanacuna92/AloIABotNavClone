@@ -14,6 +14,15 @@ const promptLoader = require('../services/promptLoader');
 const { requireAuth, requireAdmin, requireSupportOrAdmin } = require('../middleware/auth');
 const ViteExpress = require('vite-express');
 
+// Helper para extraer userId limpio de diferentes formatos de WhatsApp
+function extractUserId(remoteJid) {
+    if (!remoteJid) return '';
+    return remoteJid
+        .replace('@s.whatsapp.net', '')
+        .replace('@lid', '')
+        .replace('@g.us', '');
+}
+
 class WebServer {
     constructor(port = 3000) {
         this.app = express();
@@ -43,20 +52,17 @@ class WebServer {
         this.app.get('/api/qr', (req, res) => {
             try {
                 const bot = global.whatsappBot;
-                if (!bot || !bot.currentQR) {
-                    return res.json({ 
-                        qr: null, 
-                        message: 'No hay código QR disponible. El bot puede estar ya conectado o reiniciándose.' 
-                    });
-                }
-                
-                res.json({ 
-                    qr: bot.currentQR,
-                    message: 'Escanea este código con WhatsApp'
+                const status = bot?.connectionStatus || 'disconnected';
+
+                res.json({
+                    qr: bot?.currentQR || null,
+                    status: status,
+                    message: bot?.currentQR ? 'Escanea este código con WhatsApp' :
+                             status === 'connected' ? 'Bot conectado' : 'Esperando conexión...'
                 });
             } catch (error) {
                 console.error('Error obteniendo QR:', error);
-                res.status(500).json({ error: 'Error obteniendo código QR' });
+                res.status(500).json({ error: 'Error obteniendo código QR', status: 'disconnected' });
             }
         });
         
@@ -908,7 +914,7 @@ LuisOnorio,Av. Constituyentes,Micronave,25,20,500,350000,Pre-Venta,Cuenta con mu
                 await global.whatsappBot.sock.sendMessage(formattedPhone, { text: endMessage });
 
                 // Registrar el mensaje de finalización en los logs como mensaje del BOT
-                const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@g.us', '');
+                const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@lid', '').replace('@g.us', '');
                 const isGroup = phone.includes('@g.us') || formattedPhone.includes('@g.us');
                 logger.log('BOT', endMessage, cleanPhone, null, isGroup);
 
@@ -950,7 +956,7 @@ LuisOnorio,Av. Constituyentes,Micronave,25,20,500,350000,Pre-Venta,Cuenta con mu
                 }
 
                 // Limpiar el número de teléfono
-                const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@g.us', '');
+                const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@lid', '').replace('@g.us', '');
 
                 // Eliminar mensajes de los logs
                 await logger.deleteConversation(cleanPhone);
@@ -1084,7 +1090,7 @@ LuisOnorio,Av. Constituyentes,Micronave,25,20,500,350000,Pre-Venta,Cuenta con mu
 
                 // Registrar el mensaje enviado por el humano con el nombre del usuario
                 const senderName = req.user ? req.user.name : 'Soporte';
-                const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@g.us', '');
+                const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@lid', '').replace('@g.us', '');
                 const isGroup = phone.includes('@g.us') || formattedPhone.includes('@g.us');
                 // Usar 'soporte' como role para la base de datos
                 await logger.log('soporte', message, cleanPhone, senderName, isGroup, null, null, messageId);

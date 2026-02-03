@@ -114,7 +114,7 @@ function Reports() {
   const handleSaleStatusChange = async (report, field, value) => {
     try {
       // Generar el ID de conversación basado en teléfono y fecha
-      const phone = report.telefono.replace('@s.whatsapp.net', '');
+      const phone = report.telefono.replace('@s.whatsapp.net', '').replace('@lid', '');
       const date = report.fecha;
       
       await updateSaleStatus(null, { 
@@ -134,7 +134,7 @@ function Reports() {
 
   const formatPhone = (phone) => {
     // Remover @s.whatsapp.net si existe
-    return phone.replace('@s.whatsapp.net', '');
+    return phone.replace('@s.whatsapp.net', '').replace('@lid', '');
   };
 
   const getStatusBadge = (report) => {
@@ -216,7 +216,7 @@ function Reports() {
           
           // Actualizar el estado en el backend INMEDIATAMENTE
           await updateSaleStatus(null, {
-            phone: report.telefono.replace('@s.whatsapp.net', ''),
+            phone: report.telefono.replace('@s.whatsapp.net', '').replace('@lid', ''),
             date: report.fecha,
             posibleVenta: analysis.posibleVenta,
             ventaCerrada: true, // Marcamos como analizado
