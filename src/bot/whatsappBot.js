@@ -137,18 +137,7 @@ class WhatsAppBot {
                 followUpService.startFollowUpTimer(this.sock);
             }
         });
-        
-        } catch (error) {
-            console.error('Error iniciando bot:', error);
-            this.isReconnecting = false;
-            
-            if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                this.reconnectAttempts++;
-                console.log(`Reintentando en 5 segundos... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-                setTimeout(() => this.start(), 5000);
-            }
-        }
-        
+
         // Manejar actualizaciones de estado de mensajes
         this.sock.ev.on('messages.update', async (updates) => {
             for (const update of updates) {
@@ -301,8 +290,19 @@ class WhatsAppBot {
                 await this.handleError(error, m.messages[0]);
             }
         });
+
+        } catch (error) {
+            console.error('Error iniciando bot:', error);
+            this.isReconnecting = false;
+
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.reconnectAttempts++;
+                console.log(`Reintentando en 5 segundos... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+                setTimeout(() => this.start(), 5000);
+            }
+        }
     }
-    
+
     async processMessage(userId, userMessage, chatId) {
         // Agregar mensaje del usuario a la sesión
         await sessionManager.addMessage(userId, 'user', userMessage, chatId);
