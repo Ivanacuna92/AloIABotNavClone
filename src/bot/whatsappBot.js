@@ -187,6 +187,9 @@ class WhatsAppBot {
                 
                 // Log para debugging
                 console.log('Mensaje recibido - fromMe:', msg.key.fromMe, 'remoteJid:', msg.key.remoteJid);
+                console.log('DEBUG msg.key completo:', JSON.stringify(msg.key, null, 2));
+                console.log('DEBUG pushName:', msg.pushName);
+                console.log('DEBUG verifiedBizName:', msg.verifiedBizName);
                 
                 // Ignorar mensajes propios
                 if (msg.key.fromMe) {
@@ -232,7 +235,9 @@ class WhatsAppBot {
                     // No se activa soporte automáticamente, el usuario decide si usar IA o modo manual
                 } else {
                     // Para chats privados (soporta @s.whatsapp.net y @lid de WhatsApp Business)
-                    userId = extractUserId(from);
+                    // Usar senderPn si está disponible (número real en WhatsApp Business)
+                    const realPhone = msg.key.senderPn || from;
+                    userId = extractUserId(realPhone);
                     userName = msg.pushName || userId;
 
                     await logger.log('cliente', conversation, userId, userName, isGroup);
